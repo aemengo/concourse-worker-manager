@@ -26,7 +26,9 @@ func main() {
 
 	router := httprouter.New()
 	handler := actions.New()
+	
 	router.GET("/", handler.Root)
+	router.GET("/install/:version", handler.Install)
 
 	logger.Printf("Initializing cwm server on %s...", serverAddr)
 	err = http.ListenAndServe(serverAddr, router)
