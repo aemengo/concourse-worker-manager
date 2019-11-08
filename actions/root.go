@@ -10,6 +10,10 @@ const (
 	version = 1
 )
 
-func Root(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (a *Action) Root(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	a.logger.Printf("Received [%s] %s ...\n", r.Method, r.URL.Path)
+
 	fmt.Fprintf(w, "Concourse Worker Manager: v%d\n", version)
+
+	a.logger.Printf("Success\n")
 }

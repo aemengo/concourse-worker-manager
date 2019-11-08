@@ -25,7 +25,8 @@ func main() {
 	expectNoError(err)
 
 	router := httprouter.New()
-	router.GET("/", actions.Root)
+	handler := actions.New()
+	router.GET("/", handler.Root)
 
 	logger.Printf("Initializing cwm server on %s...", serverAddr)
 	err = http.ListenAndServe(serverAddr, router)
