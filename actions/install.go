@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aemengo/concourse-worker-manager/config"
 	"github.com/julienschmidt/httprouter"
+	"github.com/mholt/archiver"
 	"io"
 	"net/http"
 	"os"
@@ -23,6 +24,22 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	fmt.Fprintf(w, "Downloading %q to %q...\n", downloadLink, destinationPath)
 	err := downloadFile(downloadLink, destinationPath)
+	if err != nil {
+		fmt.Fprintf(w, "Error: %s\n", err)
+		a.logger.Printf("Error: %s\n", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Prepping %q...\n", config.Homedir())
+	err = os.RemoveAll(filepath.Join(config.Homedir(), "concourse"))
+	if err != nil {
+		fmt.Fprintf(w, "Error: %s\n", err)
+		a.logger.Printf("Error: %s\n", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Unpacking %q...\n", destinationPath)
+	err = archiver.Unarchive(destinationPath, config.Homedir())
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s\n", err)
 		a.logger.Printf("Error: %s\n", err)
