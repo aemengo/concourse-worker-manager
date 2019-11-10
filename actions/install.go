@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -15,6 +16,12 @@ import (
 
 func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	a.logger.Printf("Received [%s] %s ...\n", r.Method, r.URL.Path)
+
+	if a.concourseCmd != nil {
+		fmt.Fprintln(w, "Terminating previous concourse process")
+		a.concourseCmd.Process.Kill()
+		a.concourseCmd.Process.Release()
+	}
 
 	var (
 		version         = ps.ByName("version")
@@ -47,10 +54,31 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	executable := filepath.Join(config.Homedir(), "concourse", "bin", "concourse")
-	args := a.cmdArgs()
-	fmt.Fprintf(w, "Executing: %s %s\n", executable, strings.Join(args, " "))
+	var (
+		executable = filepath.Join(config.Homedir(), "concourse", "bin", "concourse")
+		args       = a.cmdArgs()
+		logPath    = filepath.Join(config.Homedir(), "concourse.log")
+	)
 
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		fmt.Fprintf(w, "Error: %s\n", err)
+		a.logger.Printf("Error: %s\n", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Executing: %s %s\n", executable, strings.Join(args, " "))
+	cmd := exec.Command(executable, args...)
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	err = cmd.Start()
+	if err != nil {
+		fmt.Fprintf(w, "Error: %s\n", err)
+		a.logger.Printf("Error: %s\n", err)
+		return
+	}
+
+	a.concourseCmd = cmd
 	fmt.Fprintln(w, "Success")
 	a.logger.Println("Success")
 }
