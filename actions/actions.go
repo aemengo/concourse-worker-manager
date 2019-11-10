@@ -6,11 +6,15 @@ import (
 )
 
 type Action struct {
-	logger *log.Logger
+	logger    *log.Logger
+	tsaHost   string
+	workerTag string
 }
 
-func New() *Action {
+func New(tsaHost string, workerTag string) *Action {
 	return &Action{
-		logger: log.New(os.Stdout, "[ROUTING] ", log.LstdFlags),
+		tsaHost:   tsaHost,
+		workerTag: workerTag,
+		logger:    log.New(os.Stdout, "[ROUTING] ", log.LstdFlags),
 	}
 }

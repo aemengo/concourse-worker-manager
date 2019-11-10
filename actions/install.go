@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -22,7 +23,7 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		destinationPath = filepath.Join(config.Homedir(), fileName)
 	)
 
-	fmt.Fprintf(w, "Downloading %q to %q...\n", downloadLink, destinationPath)
+	fmt.Fprintf(w, "Downloading %q ...\n", downloadLink)
 	err := downloadFile(downloadLink, destinationPath)
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s\n", err)
@@ -30,7 +31,7 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	fmt.Fprintf(w, "Prepping %q...\n", config.Homedir())
+	fmt.Fprintf(w, "Prepping %q ...\n", config.Homedir())
 	err = os.RemoveAll(filepath.Join(config.Homedir(), "concourse"))
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s\n", err)
@@ -38,7 +39,7 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	fmt.Fprintf(w, "Unpacking %q...\n", destinationPath)
+	fmt.Fprintf(w, "Unpacking %q ...\n", destinationPath)
 	err = archiver.Unarchive(destinationPath, config.Homedir())
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s\n", err)
@@ -46,8 +47,53 @@ func (a *Action) Install(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
+	executable := filepath.Join(config.Homedir(), "concourse", "bin", "concourse")
+	args := a.cmdArgs()
+	fmt.Fprintf(w, "Executing: %s %s\n", executable, strings.Join(args, " "))
+
 	fmt.Fprintln(w, "Success")
 	a.logger.Println("Success")
+}
+
+func (a *Action) cmdArgs() []string {
+	var args []string
+
+	switch runtime.GOOS {
+	case "linux":
+		args = []string{
+			"worker",
+			"--name", a.workerTag,
+			"--tag", a.workerTag,
+			"--work-dir", "/tmp/concourse",
+			"--tsa-host", a.tsaHost,
+			"--tsa-public-key", config.TsaHostKeyPath(),
+			"--tsa-worker-private-key", config.WorkerKeyPath(),
+			"--garden-use-houdini",
+			"--baggageclaim-disable-user-namespaces",
+		}
+	case "darwin":
+		args = []string{
+			"worker",
+			"--name", a.workerTag,
+			"--tag", a.workerTag,
+			"--work-dir", "/tmp/concourse",
+			"--tsa-host", a.tsaHost,
+			"--tsa-public-key", config.TsaHostKeyPath(),
+			"--tsa-worker-private-key", config.WorkerKeyPath(),
+		}
+	case "windows":
+		args = []string{
+			"worker",
+			"/name", a.workerTag,
+			"/tag", a.workerTag,
+			"/work-dir", `C:\concourse`,
+			"/tsa-host", a.tsaHost,
+			"/tsa-public-key", config.TsaHostKeyPath(),
+			"/tsa-worker-private-key", config.WorkerKeyPath(),
+		}
+	}
+
+	return args
 }
 
 func downloadName(version string) string {
