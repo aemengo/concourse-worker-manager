@@ -1,3 +1,5 @@
 .idea
+.DS_Store
 worker_key
 tsa_host_key.pub
+cwm-*

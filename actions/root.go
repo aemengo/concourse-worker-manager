@@ -6,14 +6,14 @@ import (
 	"net/http"
 )
 
-const (
-	version = 1
+var (
+	version = "0"
 )
 
 func (a *Action) Root(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	a.logger.Printf("Received [%s] %s ...\n", r.Method, r.URL.Path)
 
-	fmt.Fprintf(w, "Concourse Worker Manager: v%d\n", version)
+	fmt.Fprintf(w, "Concourse Worker Manager: v%s\n", version)
 
 	a.logger.Printf("Success\n")
 }
