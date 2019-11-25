@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/mholt/archiver"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -90,7 +91,7 @@ func (a *Action) cmdArgs() []string {
 	case "linux":
 		args = []string{
 			"worker",
-			"--name", a.workerTag,
+			"--name", a.workerTag + "-" + getPublicIP(),
 			"--tag", a.workerTag,
 			"--work-dir", "/tmp/concourse",
 			"--tsa-host", a.tsaHost,
@@ -102,7 +103,7 @@ func (a *Action) cmdArgs() []string {
 	case "darwin":
 		args = []string{
 			"worker",
-			"--name", a.workerTag,
+			"--name", a.workerTag + "-" + getPublicIP(),
 			"--tag", a.workerTag,
 			"--work-dir", "/tmp/concourse",
 			"--tsa-host", a.tsaHost,
@@ -112,7 +113,7 @@ func (a *Action) cmdArgs() []string {
 	case "windows":
 		args = []string{
 			"worker",
-			"/name", a.workerTag,
+			"/name", a.workerTag + "-" + getPublicIP(),
 			"/tag", a.workerTag,
 			"/work-dir", `C:\concourse`,
 			"/tsa-host", a.tsaHost,
@@ -165,4 +166,46 @@ func downloadFile(url string, filepath string) error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
+}
+
+func getPublicIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		}
+
+		if ip != nil && isPublicIP(ip) {
+			return ip.String()
+		}
+	}
+
+	return ""
+}
+
+func isPublicIP(IP net.IP) bool {
+	if IP.IsLoopback() || IP.IsLinkLocalMulticast() || IP.IsLinkLocalUnicast() {
+		return false
+	}
+	if ip4 := IP.To4(); ip4 != nil {
+		switch {
+		case ip4[0] == 10:
+			return false
+		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
+			return false
+		case ip4[0] == 192 && ip4[1] == 168:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
 }
